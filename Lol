@@ -1,0 +1,593 @@
+--[[ =====================================================================
+	MAP MAKER ADD-ON : Mode Edit / Mode Preview + Map generator + restyle GUI
+	Modified by k00lan
+	Original GUI Builder tool by Bahside
+
+	CARA PAKAI:
+	Tempel SELURUH isi file ini di PALING BAWAH script GUI Builder
+	(setelah baris terakhir: F.saveSettingsToDisk())
+===================================================================== ]]
+
+do
+State.mode = "Edit"
+State.modeInitialized = false
+State.previewRunScripts = true -- false = Preview tidak menjalankan LocalScript
+State.previewSnapshot = nil
+State.previewThreads = {}
+State.mapColor = Color3.fromRGB(70, 160, 90)
+State.mapBusy = false
+
+-- semua jendela tool (disembunyikan saat Preview)
+State.MODE_TOOL_WINDOWS = {
+	"explorerWindow", "propertiesWindow", "settingsWindow", "saveLoadWindow",
+	"saveNamePopup", "gui2luaWindow", "downloadWindow", "codeOutputWindow",
+	"importWindow", "colorPickerWindow", "gradientEditorWindow",
+	"sourceEditorWindow", "addElementPopup", "modGuiWindow", "mapWindow",
+}
+
+State.MODE_TOP_BARS = {
+	"explorerTop", "propertiesTop", "settingsTop", "saveLoadTop", "saveNameTop",
+	"gui2luaTop", "downloadTop", "codeOutputTop", "importTop", "colorPickerTop",
+	"gradientEditorTop", "sourceEditorTop", "addElementTop", "modGuiTop", "mapTop",
+}
+
+-- =========================================================================
+-- MAP WINDOW (generator peta dari tile Frame)
+-- =========================================================================
+UI.mapWindow = F.new("Frame", {
+	Name = "MapWindow",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Size = UDim2.fromOffset(240, 262),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	BackgroundColor3 = State.THEME.Background,
+	Visible = false,
+	Active = true,
+	ZIndex = 15,
+	Parent = screenGui,
+})
+
+UI.mapTop = F.new("Frame", {
+	Name = "MapTop",
+	Size = UDim2.new(1, 0, 0, 28),
+	BackgroundColor3 = State.THEME.Panel,
+	ZIndex = 15,
+	Parent = UI.mapWindow,
+})
+F.new("TextLabel", {
+	Size = UDim2.new(1, -36, 1, 0),
+	Position = UDim2.new(0, 10, 0, 0),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.GothamBold,
+	Text = "map maker",
+	TextColor3 = State.THEME.Text,
+	TextSize = 13,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 15,
+	Parent = UI.mapTop,
+})
+UI.mapCloseButton = F.new("ImageButton", {
+	Size = UDim2.new(0, 22, 0, 22),
+	Position = UDim2.new(1, -26, 0, 3),
+	BackgroundTransparency = 1,
+	Image = State.ICONS.Close,
+	ScaleType = Enum.ScaleType.Fit,
+	ZIndex = 16,
+	Parent = UI.mapTop,
+})
+UI.mapCloseButton.MouseButton1Click:Connect(function()
+	UI.mapWindow.Visible = false
+end)
+F.makeDraggable(UI.mapWindow, UI.mapTop)
+
+local function makeField(label, y, default)
+	F.new("TextLabel", {
+		Size = UDim2.new(0, 110, 0, 24),
+		Position = UDim2.new(0, 14, 0, y),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		Text = label,
+		TextColor3 = State.THEME.SubText,
+		TextSize = 12,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 15,
+		Parent = UI.mapWindow,
+	})
+	local box = F.new("TextBox", {
+		Size = UDim2.new(0, 90, 0, 24),
+		Position = UDim2.new(1, -104, 0, y),
+		BackgroundColor3 = State.THEME.PanelAlt,
+		ClearTextOnFocus = false,
+		Font = Enum.Font.Gotham,
+		Text = default,
+		TextColor3 = State.THEME.Text,
+		TextSize = 12,
+		ZIndex = 15,
+		Parent = UI.mapWindow,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = box })
+	return box
+end
+
+UI.mapCols = makeField("Columns", 40, "10")
+UI.mapRows = makeField("Rows", 70, "8")
+UI.mapTile = makeField("Tile size (px)", 100, "40")
+UI.mapGap = makeField("Gap (px)", 130, "2")
+
+F.new("TextLabel", {
+	Size = UDim2.new(0, 110, 0, 24),
+	Position = UDim2.new(0, 14, 0, 160),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.Gotham,
+	Text = "Tile color",
+	TextColor3 = State.THEME.SubText,
+	TextSize = 12,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 15,
+	Parent = UI.mapWindow,
+})
+UI.mapColorSwatch = F.new("TextButton", {
+	Size = UDim2.new(0, 90, 0, 24),
+	Position = UDim2.new(1, -104, 0, 160),
+	BackgroundColor3 = State.mapColor,
+	AutoButtonColor = false,
+	Text = "",
+	ZIndex = 15,
+	Parent = UI.mapWindow,
+})
+F.new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = UI.mapColorSwatch })
+UI.mapColorSwatch.MouseButton1Click:Connect(function()
+	F.openColorPicker(State.mapColor, function(c)
+		State.mapColor = c
+		UI.mapColorSwatch.BackgroundColor3 = c
+	end)
+end)
+
+UI.mapGenerateBtn = F.new("TextButton", {
+	Size = UDim2.new(1, -28, 0, 32),
+	Position = UDim2.new(0, 14, 0, 196),
+	BackgroundColor3 = State.THEME.Accent,
+	AutoButtonColor = false,
+	Font = Enum.Font.GothamBold,
+	Text = "Generate Map",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextSize = 13,
+	ZIndex = 15,
+	Parent = UI.mapWindow,
+})
+F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = UI.mapGenerateBtn })
+
+UI.mapStatus = F.new("TextLabel", {
+	Size = UDim2.new(1, -28, 0, 18),
+	Position = UDim2.new(0, 14, 0, 236),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.Gotham,
+	Text = "Map dibuat di elemen yang dipilih",
+	TextColor3 = State.THEME.SubText,
+	TextSize = 11,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	ZIndex = 15,
+	Parent = UI.mapWindow,
+})
+
+function F.generateMap(cols, rows, tile, gap, color)
+	local parent = State.selected
+	if not parent or not (parent:IsA("GuiObject") or parent:IsA("LayerCollector")) then
+		parent = State.projectGui
+	end
+	State.elementCounter = State.elementCounter + 1
+
+	local map = F.new("Frame", {
+		Name = "Map" .. State.elementCounter,
+		Size = UDim2.fromOffset(cols * (tile + gap) + gap, rows * (tile + gap) + gap),
+		Position = UDim2.fromOffset(20, 20),
+		BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+	})
+	F.new("UIPadding", {
+		PaddingTop = UDim.new(0, gap), PaddingBottom = UDim.new(0, gap),
+		PaddingLeft = UDim.new(0, gap), PaddingRight = UDim.new(0, gap),
+		Parent = map,
+	})
+	F.new("UIGridLayout", {
+		CellSize = UDim2.fromOffset(tile, tile),
+		CellPadding = UDim2.fromOffset(gap, gap),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = map,
+	})
+
+	local light = color:Lerp(Color3.new(1, 1, 1), 0.1)
+	local count = 0
+	for r = 1, rows do
+		for c = 1, cols do
+			F.new("Frame", {
+				Name = string.format("Tile_%d_%d", r, c),
+				BackgroundColor3 = ((r + c) % 2 == 0) and color or light,
+				LayoutOrder = (r - 1) * cols + c,
+				Parent = map,
+			})
+			count = count + 1
+			if count % 200 == 0 then task.wait() end -- anti-lag
+		end
+	end
+
+	map.Parent = parent
+	State.collapsed[map] = true -- explorer tidak dibanjiri tile
+	F.recordAdd(map, parent)
+	F.expandAncestors(map)
+	F.refreshExplorer()
+	F.selectInstance(map)
+	return map
+end
+
+UI.mapGenerateBtn.MouseButton1Click:Connect(function()
+	if State.mapBusy then return end
+	if State.mode ~= "Edit" then return end
+	State.mapBusy = true
+	local cols = math.clamp(math.floor(tonumber(UI.mapCols.Text) or 10), 1, 40)
+	local rows = math.clamp(math.floor(tonumber(UI.mapRows.Text) or 8), 1, 40)
+	local tile = math.clamp(math.floor(tonumber(UI.mapTile.Text) or 40), 8, 200)
+	local gap = math.clamp(math.floor(tonumber(UI.mapGap.Text) or 2), 0, 20)
+	UI.mapStatus.Text = "Generating..."
+	local ok, err = pcall(F.generateMap, cols, rows, tile, gap, State.mapColor)
+	State.mapBusy = false
+	if ok then
+		UI.mapStatus.Text = string.format("Map %dx%d dibuat", cols, rows)
+	else
+		UI.mapStatus.Text = "Error: " .. F.shortError(err)
+	end
+end)
+
+-- =========================================================================
+-- MODE BAR (Edit / Preview) + toolbar pengganti tombol Options saat Edit
+-- =========================================================================
+UI.modeBar = F.new("Frame", {
+	Name = "ModeBar",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Size = UDim2.fromOffset(120, 36),
+	Position = UDim2.new(0.5, 0, 0, 8),
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+	BackgroundTransparency = 0.19,
+	ZIndex = 119,
+	Parent = screenGui,
+})
+F.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = UI.modeBar })
+F.new("UIPadding", { PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4), PaddingTop = UDim.new(0, 4), Parent = UI.modeBar })
+F.new("UIListLayout", {
+	FillDirection = Enum.FillDirection.Horizontal,
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Parent = UI.modeBar,
+})
+UI.modeBarScale = F.new("UIScale", { Scale = 1, Parent = UI.modeBar })
+
+State.modeBarButtons = {}
+State.modeToolButtons = {}
+
+local function makeBarButton(text, w, order)
+	local b = F.new("TextButton", {
+		Size = UDim2.fromOffset(w, 28),
+		BackgroundColor3 = State.THEME.Button,
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		Text = text,
+		TextColor3 = State.THEME.Text,
+		TextSize = 12,
+		LayoutOrder = order,
+		ZIndex = 120,
+		Parent = UI.modeBar,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
+	table.insert(State.modeBarButtons, b)
+	return b
+end
+
+UI.modeEditBtn = makeBarButton("Edit", 56, 1)
+UI.modePreviewBtn = makeBarButton("Preview", 68, 2)
+
+local TOOLS = {
+	{ "Explorer", 62, function() F.toggleWindowWithFade(UI.explorerWindow) end },
+	{ "Props", 52, function() F.toggleWindowWithFade(UI.propertiesWindow) end },
+	{ "Map", 46, function() F.toggleWindowWithFade(UI.mapWindow) end },
+	{ "Save", 46, function() F.toggleWindowWithFade(UI.saveLoadWindow) end },
+	{ "Import", 56, function() F.toggleWindowWithFade(UI.importWindow) end },
+	{ "Gui2Lua", 62, function() F.showWindowWithFade(UI.gui2luaWindow) end },
+	{ "Settings", 62, function() F.toggleWindowWithFade(UI.settingsWindow) end },
+}
+for i, t in ipairs(TOOLS) do
+	local b = makeBarButton(t[1], t[2], 10 + i)
+	b.MouseButton1Click:Connect(t[3])
+	table.insert(State.modeToolButtons, b)
+end
+
+function F.relayoutModeBar()
+	local w, n = 0, 0
+	for _, b in ipairs(State.modeBarButtons) do
+		if b.Visible then
+			w = w + b.Size.X.Offset
+			n = n + 1
+		end
+	end
+	w = w + math.max(0, n - 1) * 4 + 8
+	UI.modeBar.Size = UDim2.fromOffset(w, 36)
+	local vp = F.getViewportSize()
+	UI.modeBarScale.Scale = math.min(1, (vp.X - 12) / w)
+end
+
+function F.refreshModeUi()
+	local isEdit = (State.mode == "Edit")
+	local white = Color3.fromRGB(255, 255, 255)
+	UI.modeEditBtn.BackgroundColor3 = isEdit and State.THEME.Accent or State.THEME.Button
+	UI.modeEditBtn.TextColor3 = isEdit and white or State.THEME.Text
+	UI.modePreviewBtn.BackgroundColor3 = (not isEdit) and State.THEME.Accent or State.THEME.Button
+	UI.modePreviewBtn.TextColor3 = (not isEdit) and white or State.THEME.Text
+	for _, b in ipairs(State.modeToolButtons) do
+		b.Visible = isEdit
+		b.BackgroundColor3 = State.THEME.Button
+		b.TextColor3 = State.THEME.Text
+	end
+	F.relayoutModeBar()
+end
+
+UI.modeEditBtn.MouseButton1Click:Connect(function() F.setMode("Edit") end)
+UI.modePreviewBtn.MouseButton1Click:Connect(function() F.setMode("Preview") end)
+screenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	F.relayoutModeBar()
+end)
+
+-- label nama elemen pindah ke bawah mode bar
+UI.selectionNameLabel.Position = UDim2.new(0.5, -140, 0, 50)
+
+-- =========================================================================
+-- Snapshot + jalankan script untuk Preview
+-- =========================================================================
+function F.snapshotProject()
+	local snap = {}
+	for _, c in ipairs(State.projectGui:GetChildren()) do
+		if not F.isOverlay(c) then
+			local cl = c:Clone()
+			if cl then
+				table.insert(snap, cl)
+				-- source script disalin manual (executor sering melindungi .Source)
+				local o, k = { c }, { cl }
+				for _, d in ipairs(c:GetDescendants()) do o[#o + 1] = d end
+				for _, d in ipairs(cl:GetDescendants()) do k[#k + 1] = d end
+				if #o == #k then
+					for i = 1, #o do
+						if o[i]:IsA("LocalScript") or o[i]:IsA("ModuleScript") then
+							F.setScriptSource(k[i], F.getScriptSource(o[i]))
+						end
+					end
+				end
+			end
+		end
+	end
+	return snap
+end
+
+function F.runPreviewScripts()
+	State.previewThreads = {}
+	if not State.previewRunScripts or not State.canLoadCode then return end
+	for _, d in ipairs(State.projectGui:GetDescendants()) do
+		if d:IsA("LocalScript") then
+			local src = F.getScriptSource(d)
+			if type(src) == "string" and src ~= "" then
+				local fn = loadstring(src)
+				if fn then
+					if typeof(setfenv) == "function" and typeof(getfenv) == "function" then
+						pcall(function()
+							setfenv(fn, setmetatable({ script = d }, { __index = getfenv(1) }))
+						end)
+					end
+					local th = task.spawn(function()
+						local ok, err = pcall(fn)
+						if not ok then
+							warn("[Preview] " .. d.Name .. ": " .. tostring(err))
+						end
+					end)
+					table.insert(State.previewThreads, th)
+				end
+			end
+		end
+	end
+end
+
+function F.stopPreviewScripts()
+	for _, th in ipairs(State.previewThreads) do
+		pcall(task.cancel, th)
+	end
+	State.previewThreads = {}
+end
+
+-- =========================================================================
+-- SET MODE
+-- =========================================================================
+function F.setMode(mode)
+	if mode ~= "Edit" and mode ~= "Preview" then return end
+	if State.mode == mode and State.modeInitialized then return end
+	State.modeInitialized = true
+	F.closeActiveDropdown()
+	if F.cancelExplorerDrag then F.cancelExplorerDrag() end
+
+	if mode == "Preview" then
+		-- bersihkan seleksi dulu supaya overlay/bounding box tidak ikut ke snapshot
+		F.clearHighlight()
+		F.destroyBoundingBox()
+		F.clearAlignmentLines()
+		State.selected = nil
+		State.selectedSet = {}
+
+		-- GUI game (Mod GUI) tidak disentuh: tanpa snapshot dan tanpa menjalankan script
+		local external = State.editingExternalGui ~= nil and State.projectGui == State.editingExternalGui
+		State.previewSnapshot = nil
+		if not external then
+			State.previewSnapshot = F.snapshotProject()
+		end
+
+		State.mode = "Preview"
+		for _, name in ipairs(State.MODE_TOOL_WINDOWS) do
+			local w = UI[name]
+			if w then w.Visible = false end
+		end
+		UI.selectionNameLabel.Visible = false
+		UI.optionsButton.Visible = true
+		UI.optionsMenu.Visible = true
+		pcall(function()
+			if State.projectGui:IsA("ScreenGui") then State.projectGui.Enabled = true end
+		end)
+		if not external then
+			F.runPreviewScripts()
+		end
+	else
+		F.stopPreviewScripts()
+		State.mode = "Edit"
+		if State.previewSnapshot then
+			for _, c in ipairs(State.projectGui:GetChildren()) do
+				if not F.isOverlay(c) then c:Destroy() end
+			end
+			for _, cl in ipairs(State.previewSnapshot) do
+				cl.Parent = State.projectGui
+			end
+			State.previewSnapshot = nil
+			F.clearHistory()
+		end
+		State.selected = nil
+
+		-- tombol Options hilang saat Edit
+		if State.optionsMenuOpen then
+			State.optionsMenuOpen = false
+			F.setOptionsMenuSyncing(false)
+		end
+		UI.optionsMenu.Size = State.optionsMenuMinimizedSize
+		UI.optionsMenu.Visible = false
+		UI.optionsButton.Visible = false
+
+		pcall(function()
+			if State.projectGui:IsA("ScreenGui") then State.projectGui.Enabled = true end
+		end)
+		F.refreshExplorer()
+		F.selectInstance(State.projectGui)
+		-- GUI editor diperlihatkan
+		if not UI.explorerWindow.Visible then F.showWindowWithFade(UI.explorerWindow) end
+		if not UI.propertiesWindow.Visible then F.showWindowWithFade(UI.propertiesWindow) end
+	end
+	F.refreshModeUi()
+end
+
+-- selama Preview: tidak bisa memilih elemen & jendela explorer/properties tidak bisa dibuka
+State.origSelectInstance = F.selectInstance
+function F.selectInstance(inst)
+	if State.mode == "Preview" then return end
+	return State.origSelectInstance(inst)
+end
+
+for _, name in ipairs({ "explorerWindow", "propertiesWindow" }) do
+	local w = UI[name]
+	w:GetPropertyChangedSignal("Visible"):Connect(function()
+		if State.mode == "Preview" and w.Visible then
+			w.Visible = false
+		end
+	end)
+end
+
+-- autosave tidak boleh menyimpan keadaan Preview
+State.origAutosave = F.doAutosave
+function F.doAutosave()
+	if State.mode == "Preview" then return end
+	return State.origAutosave()
+end
+
+-- ganti tema -> warnai ulang mode bar & map window
+State.origApplyTheme = F.applyTheme
+function F.applyTheme(themeName)
+	State.origApplyTheme(themeName)
+	pcall(function()
+		UI.mapWindow.BackgroundColor3 = State.THEME.Background
+		UI.mapTop.BackgroundColor3 = State.THEME.Panel
+		UI.mapGenerateBtn.BackgroundColor3 = State.THEME.Accent
+		F.refreshModeUi()
+		if F.restyleAllGuis then F.restyleAllGuis() end
+	end)
+end
+
+-- =========================================================================
+-- RESTYLE SEMUA GUI TOOL (sudut bulat, garis tepi aksen, header gradasi)
+-- =========================================================================
+function F.restyleAllGuis()
+	for _, name in ipairs(State.MODE_TOOL_WINDOWS) do
+		local w = UI[name]
+		if w and w:IsA("GuiObject") then
+			if not w:FindFirstChildOfClass("UICorner") then
+				F.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = w })
+			end
+			local stroke = w:FindFirstChild("__WinStroke")
+			if not stroke then
+				stroke = F.new("UIStroke", {
+					Name = "__WinStroke",
+					Thickness = 1,
+					Transparency = 0.55,
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+					Parent = w,
+				})
+			end
+			stroke.Color = State.THEME.Accent
+		end
+	end
+	for _, name in ipairs(State.MODE_TOP_BARS) do
+		local bar = UI[name]
+		if bar and bar:IsA("GuiObject") then
+			if not bar:FindFirstChildOfClass("UICorner") then
+				F.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = bar })
+			end
+			if not bar:FindFirstChild("__TopGradient") then
+				F.new("UIGradient", {
+					Name = "__TopGradient",
+					Rotation = 90,
+					Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(175, 175, 190)),
+					Parent = bar,
+				})
+			end
+		end
+	end
+	if UI.actionBar and not UI.actionBar:FindFirstChildOfClass("UICorner") then
+		F.new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = UI.actionBar })
+	end
+end
+
+-- =========================================================================
+-- KREDIT
+-- =========================================================================
+UI.creditLabel = F.new("TextLabel", {
+	Name = "__CreditLabel",
+	AnchorPoint = Vector2.new(0, 1),
+	Size = UDim2.fromOffset(260, 16),
+	Position = UDim2.new(0, 10, 1, -8),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.GothamBold,
+	Text = "Map Builder - Modified by k00lan",
+	TextColor3 = State.THEME.SubText,
+	TextTransparency = 0.25,
+	TextSize = 11,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 300,
+	Parent = screenGui,
+})
+F.new("TextLabel", {
+	Size = UDim2.new(1, 0, 0, 34),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.Gotham,
+	Text = "Modified by k00lan\nOriginal GUI Builder: Bahside",
+	TextColor3 = State.THEME.SubText,
+	TextSize = 11,
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	LayoutOrder = 99,
+	ZIndex = 15,
+	Parent = UI.settingsContent,
+})
+
+-- =========================================================================
+-- START: langsung masuk Mode Edit
+-- =========================================================================
+F.restyleAllGuis()
+F.setMode("Edit")
+end -- do (MAP MAKER ADD-ON)
