@@ -1,0 +1,317 @@
+--[[
+	=====================================================
+	 EDIT MODE + PREVIEW MODE  (untuk GUI Builder)
+	=====================================================
+	CARA PASANG
+	  Tempel seluruh isi file ini di PALING BAWAH script,
+	  setelah baris  F.saveSettingsToDisk()  yang terakhir.
+	  Tidak ada baris lama yang perlu diubah.
+
+	EDIT MODE
+	  - Avatar disembunyikan dan di-freeze (tidak bisa jalan / lompat)
+	  - Joystick + tombol lompat di HP dimatikan, kamera dikunci
+	  - Tool di tangan dilepas dan Backpack dimatikan
+	  - Semua jendela tool (Options, Explorer, Properties, dll) tampil
+
+	PREVIEW MODE
+	  - Semua UI tool hilang (Options, Explorer, dll), termasuk garis
+	    seleksi / handle di dalam GUI proyek
+	  - Hanya GUI proyek yang tersisa
+	  - Avatar dan kontrol kembali normal
+	  - Ada tombol "Edit" kecil transparan di kanan atas untuk balik ke Edit
+	=====================================================
+]]
+do
+	local StarterGui = game:GetService("StarterGui")
+
+	-- true  = tool langsung masuk Edit mode saat dibuka
+	-- false = tool mulai tanpa freeze, freeze baru aktif setelah tekan "edit mode"
+	local START_IN_EDIT = true
+
+	local CAM_STEP = "GuiBuilderFreezeCamera"
+
+	-- Kalau script dijalankan ulang: pulihkan dulu keadaan dari jalan sebelumnya
+	-- (avatar masih tersembunyi, kamera terkunci, joystick mati)
+	local genv = (typeof(getgenv) == "function" and getgenv()) or _G
+	if type(genv.__GuiBuilderModeCleanup) == "function" then
+		pcall(genv.__GuiBuilderModeCleanup)
+	end
+
+	State.editorMode = nil           -- "edit" atau "preview"
+	State.modeReturnSelection = nil  -- elemen yang dipilih sebelum masuk Preview
+
+	----------------------------------------------------------------
+	-- Tombol "Edit" untuk keluar dari Preview
+	-- (ScreenGui terpisah, karena seluruh UI tool disembunyikan saat Preview)
+	----------------------------------------------------------------
+	local oldExit = PlayerGui:FindFirstChild("GuiBuilderPreviewExit")
+	if oldExit then oldExit:Destroy() end
+
+	local exitGui = F.new("ScreenGui", {
+		Name = "GuiBuilderPreviewExit",
+		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = 2000,
+		IgnoreGuiInset = true,
+		Enabled = false,
+		Parent = PlayerGui,
+	})
+	local exitBtn = F.new("TextButton", {
+		Name = "ExitPreview",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -14, 0, 10),
+		Size = UDim2.fromOffset(56, 30),
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 0.5,
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		Text = "Edit",
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextTransparency = 0.15,
+		TextSize = 13,
+		Parent = exitGui,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = exitBtn })
+
+	----------------------------------------------------------------
+	-- Freeze avatar (dipakai Edit mode)
+	----------------------------------------------------------------
+	local frozen = false
+	local token = 0
+	local conns = {}
+	local hidden = setmetatable({}, { __mode = "k" })          -- [inst] = { properti, nilai asli }
+	local anchoredBefore = setmetatable({}, { __mode = "k" })  -- [HumanoidRootPart] = Anchored asli
+	local displayBefore = setmetatable({}, { __mode = "k" })   -- [Humanoid] = DisplayDistanceType asli
+	local camSaved = nil
+	local controlsObj = nil
+	local backpackWas = nil
+
+	-- sembunyikan satu bagian avatar (bagian tubuh, aksesori, wajah, tag di atas kepala)
+	local function hideOne(d)
+		local prop, value
+		if d:IsA("BasePart") or d:IsA("Decal") then
+			prop, value = "Transparency", 1
+		elseif d:IsA("BillboardGui") then
+			prop, value = "Enabled", false
+		else
+			return
+		end
+		if hidden[d] == nil then
+			hidden[d] = { prop, d[prop] }
+		end
+		d[prop] = value
+	end
+
+	local function freezeChar(char, myToken)
+		if not char then return end
+		for _, d in ipairs(char:GetDescendants()) do
+			hideOne(d)
+		end
+		-- aksesori yang baru muncul ikut disembunyikan
+		table.insert(conns, char.DescendantAdded:Connect(hideOne))
+		task.spawn(function()
+			local hum = char:WaitForChild("Humanoid", 10)
+			local root = char:WaitForChild("HumanoidRootPart", 10)
+			if not frozen or myToken ~= token then return end
+			if hum then
+				if displayBefore[hum] == nil then
+					displayBefore[hum] = hum.DisplayDistanceType
+				end
+				hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+				pcall(function() hum:UnequipTools() end)
+			end
+			if root then
+				if anchoredBefore[root] == nil then
+					anchoredBefore[root] = root.Anchored
+				end
+				root.Anchored = true
+			end
+		end)
+	end
+
+	local function getControls()
+		local ok, controls = pcall(function()
+			local scripts = LocalPlayer:FindFirstChild("PlayerScripts")
+			local pm = scripts and scripts:FindFirstChild("PlayerModule")
+			return pm and require(pm):GetControls()
+		end)
+		if ok then return controls end
+		return nil
+	end
+
+	local function freeze()
+		if frozen then return end
+		frozen = true
+		token = token + 1
+		local myToken = token
+
+		-- kamera dikunci di posisi sekarang
+		local cam = Workspace.CurrentCamera
+		if cam then
+			camSaved = { type = cam.CameraType }
+			local lockedCF = cam.CFrame
+			pcall(function() RunService:UnbindFromRenderStep(CAM_STEP) end)
+			RunService:BindToRenderStep(CAM_STEP, Enum.RenderPriority.Camera.Value + 1, function()
+				local c = Workspace.CurrentCamera
+				if c then
+					c.CameraType = Enum.CameraType.Scriptable
+					c.CFrame = lockedCF
+				end
+			end)
+		end
+
+		-- kontrol dimatikan (joystick + tombol lompat di HP ikut hilang)
+		controlsObj = getControls()
+		if controlsObj then
+			pcall(function() controlsObj:Disable() end)
+		end
+
+		-- Backpack dimatikan supaya tidak bisa pakai tool
+		pcall(function()
+			backpackWas = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Backpack)
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+
+		-- avatar sekarang + avatar baru kalau respawn
+		freezeChar(LocalPlayer.Character, myToken)
+		table.insert(conns, LocalPlayer.CharacterAdded:Connect(function(char)
+			freezeChar(char, myToken)
+		end))
+	end
+
+	local function unfreeze()
+		if not frozen then return end
+		frozen = false
+		token = token + 1
+
+		pcall(function() RunService:UnbindFromRenderStep(CAM_STEP) end)
+		for _, c in ipairs(conns) do
+			pcall(function() c:Disconnect() end)
+		end
+		conns = {}
+
+		local cam = Workspace.CurrentCamera
+		if cam and camSaved then
+			pcall(function() cam.CameraType = camSaved.type end)
+		end
+		camSaved = nil
+
+		for inst, rec in pairs(hidden) do
+			pcall(function() inst[rec[1]] = rec[2] end)
+		end
+		table.clear(hidden)
+		for root, was in pairs(anchoredBefore) do
+			pcall(function() root.Anchored = was end)
+		end
+		table.clear(anchoredBefore)
+		for hum, dist in pairs(displayBefore) do
+			pcall(function() hum.DisplayDistanceType = dist end)
+		end
+		table.clear(displayBefore)
+
+		if controlsObj then
+			pcall(function() controlsObj:Enable() end)
+			controlsObj = nil
+		end
+		if backpackWas ~= nil then
+			pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, backpackWas) end)
+			backpackWas = nil
+		end
+	end
+
+	----------------------------------------------------------------
+	-- Ganti mode
+	----------------------------------------------------------------
+	local modeButtons = {}
+
+	-- teks tombol mode yang sedang aktif diberi warna Accent
+	local function paintButtons()
+		for name, btn in pairs(modeButtons) do
+			local lbl = btn:FindFirstChildOfClass("TextLabel")
+			if lbl then
+				lbl.TextColor3 = (State.editorMode == name) and State.THEME.Accent or State.THEME.Text
+			end
+		end
+	end
+
+	function F.setEditorMode(mode)
+		if mode ~= "edit" and mode ~= "preview" then return end
+		if State.editorMode == mode then return end
+
+		if mode == "preview" then
+			-- lepas fokus TextBox supaya isian yang belum tersimpan ikut tersimpan
+			local focused = UserInputService:GetFocusedTextBox()
+			if focused then focused:ReleaseFocus() end
+
+			-- simpan pilihan, lalu bersihkan semua garis/handle tool di dalam GUI proyek
+			State.modeReturnSelection = State.selected
+			F.cancelExplorerDrag()
+			F.closeActiveDropdown()
+			F.clearHighlight()
+			F.destroyBoundingBox()
+			F.clearAlignmentLines()
+
+			-- tutup menu Options tanpa animasi
+			if State.optionsMenuOpen then
+				State.optionsMenuOpen = false
+				F.setOptionsMenuSyncing(false)
+				UI.optionsMenu.Size = State.optionsMenuMinimizedSize
+				UI.optionsMenu.BackgroundTransparency = 1
+			end
+
+			unfreeze()
+			screenGui.Enabled = false
+			exitGui.Enabled = true
+		else
+			exitGui.Enabled = false
+			screenGui.Enabled = true
+			freeze()
+
+			-- kembalikan pilihan terakhir (handle + garis seleksi muncul lagi)
+			local sel = State.modeReturnSelection
+			State.modeReturnSelection = nil
+			if not (sel and sel.Parent) then
+				sel = State.projectGui
+			end
+			F.refreshExplorerKeepScroll()
+			F.selectInstance(sel)
+		end
+
+		State.editorMode = mode
+		paintButtons()
+	end
+
+	----------------------------------------------------------------
+	-- 2 tombol baru di menu Options (di bawah Import)
+	----------------------------------------------------------------
+	State.OPTIONS_MENU_HEIGHT = 8 * 38 + 16
+	State.optionsMenuOriginalSize = UDim2.new(0, 180, 0, State.OPTIONS_MENU_HEIGHT)
+	UI.optionsMenuList.Size = UDim2.new(1, -12, 0, State.OPTIONS_MENU_HEIGHT - 12)
+	local menuEntry = State.responsiveByWin and State.responsiveByWin[UI.optionsMenu]
+	if menuEntry then
+		menuEntry.h = State.OPTIONS_MENU_HEIGHT
+	end
+
+	modeButtons.edit = F.menuButton(7, "edit mode", nil)
+	modeButtons.preview = F.menuButton(8, "preview mode", nil)
+	modeButtons.edit.MouseButton1Click:Connect(function()
+		F.setEditorMode("edit")
+	end)
+	modeButtons.preview.MouseButton1Click:Connect(function()
+		F.setEditorMode("preview")
+	end)
+	exitBtn.MouseButton1Click:Connect(function()
+		F.setEditorMode("edit")
+	end)
+
+	-- dipanggil otomatis kalau script dijalankan ulang
+	genv.__GuiBuilderModeCleanup = function()
+		pcall(unfreeze)
+		pcall(function() exitGui:Destroy() end)
+	end
+
+	paintButtons()
+	if START_IN_EDIT then
+		F.setEditorMode("edit")
+	end
+end
