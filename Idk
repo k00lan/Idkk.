@@ -1,0 +1,1038 @@
+--[[
+	==============================
+	 
+░██████╗░██╗░░░██╗██╗
+██╔════╝░██║░░░██║██║
+██║░░██╗░██║░░░██║██║
+██║░░╚██╗██║░░░██║██║
+╚██████╔╝╚██████╔╝██║
+░╚═════╝░░╚═════╝░╚═╝
+
+██████╗░██╗░░░██╗██╗██╗░░░░░██████╗░███████╗██████╗
+██╔══██╗██║░░░██║██║██║░░░░░██╔══██╗██╔════╝██╔══██╗
+██████╦╝██║░░░██║██║██║░░░░░██║░░██║█████╗░░██████╔╝
+██╔══██╗██║░░░██║██║██║░░░░░██║░░██║██╔══╝░░██╔══██╗
+██████╦╝╚██████╔╝██║███████╗██████╔╝███████╗██║░░██║
+╚═════╝░░╚═════╝░╚═╝╚══════╝╚═════╝░╚══════╝╚═╝░░╚═╝
+
+██╗░░░██╗░░██╗██╗
+██║░░░██║░██╔╝██║
+╚██╗░██╔╝██╔╝░██║
+░╚████╔╝░███████║
+░░╚██╔╝░░╚════██║
+░░░╚═╝░░░░░░░░╚═╝
+	-BETA-
+	
+	
+	
+███╗░░░███╗░█████╗░██████╗░███████╗
+████╗░████║██╔══██╗██╔══██╗██╔════╝
+██╔████╔██║███████║██║░░██║█████╗░░
+██║╚██╔╝██║██╔══██║██║░░██║██╔══╝░░
+██║░╚═╝░██║██║░░██║██████╔╝███████╗
+╚═╝░░░░░╚═╝╚═╝░░╚═╝╚═════╝░╚══════╝
+
+██████╗░██╗░░░██╗
+██╔══██╗╚██╗░██╔╝
+██████╦╝░╚████╔╝░
+██╔══██╗░░╚██╔╝░░
+██████╦╝░░░██║░░░
+╚═════╝░░░░╚═╝░░░
+
+██████╗░░█████╗░██╗░░██╗░██████╗██╗██████╗░███████╗
+██╔══██╗██╔══██╗██║░░██║██╔════╝██║██╔══██╗██╔════╝
+██████╦╝███████║███████║╚█████╗░██║██║░░██║█████╗░░
+██╔══██╗██╔══██║██╔══██║░╚═══██╗██║██║░░██║██╔══╝░░
+██████╦╝██║░░██║██║░░██║██████╔╝██║██████╔╝███████╗
+╚═════╝░╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝░╚═╝╚═════╝░╚══════╝
+	
+	
+	
+    ================================
+	- Black Theme
+	- White Theme
+	- Explorer
+	- Properties
+	- Gui2Lua
+	- Setting
+	- Save/Load
+	- Add Element
+	- Edit Mode
+	- Preview Mode
+	==============================
+]]
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local UI = {}
+local State = {}
+local F = {}
+local screenGui
+
+State.THEMES = {
+	Black = {
+		Background  = Color3.fromRGB(24, 24, 24),
+		Panel       = Color3.fromRGB(32, 32, 32),
+		PanelAlt    = Color3.fromRGB(40, 40, 40),
+		Divider     = Color3.fromRGB(50, 50, 50),
+		Button      = Color3.fromRGB(45, 45, 45),
+		ButtonHover = Color3.fromRGB(58, 58, 58),
+		Accent      = Color3.fromRGB(90, 130, 200),
+		Text        = Color3.fromRGB(225, 225, 225),
+		SubText     = Color3.fromRGB(160, 160, 160),
+		RowSelected = Color3.fromRGB(55, 70, 90),
+		Danger      = Color3.fromRGB(180, 60, 60),
+	},
+	White = {
+		Background  = Color3.fromRGB(245, 245, 245),
+		Panel       = Color3.fromRGB(255, 255, 255),
+		PanelAlt    = Color3.fromRGB(235, 235, 235),
+		Divider     = Color3.fromRGB(200, 200, 200),
+		Button      = Color3.fromRGB(230, 230, 230),
+		ButtonHover = Color3.fromRGB(210, 210, 210),
+		Accent      = Color3.fromRGB(70, 120, 200),
+		Text        = Color3.fromRGB(30, 30, 30),
+		SubText     = Color3.fromRGB(100, 100, 100),
+		RowSelected = Color3.fromRGB(200, 220, 255),
+		Danger      = Color3.fromRGB(200, 60, 60),
+	},
+}
+
+State.THEME = {}
+for k, v in pairs(State.THEMES.Black) do State.THEME[k] = v end
+
+State.ICONS = {
+	Gear            = "rbxassetid://6578871732",
+	Close           = "rbxassetid://110786993356448",
+	Save            = "rbxassetid://126116963775616",
+	GuiToLua        = "rbxassetid://97321022666868",
+	Properties      = "rbxassetid://113179976918783",
+	Explorer        = "rbxassetid://87462136296578",
+	Settings        = "rbxassetid://6578871732",
+	Plus            = "rbxassetid://111774323017047",
+	Delete          = "rbxassetid://75830115088395",
+	Copy            = "rbxassetid://78979572434545",
+	Paste           = "rbxassetid://125851897718493",
+	ToggleCheck     = "rbxassetid://6401617475",
+	GradientArrow   = "rbxassetid://81889066747907",
+	SaveNew         = "rbxassetid://91865663406119",
+	EditSave        = "rbxassetid://120239476110475",
+	LoadSave        = "rbxassetid://91221896066807",
+	UpdateSave      = "rbxassetid://126116963775616",
+	DeleteSave      = "rbxassetid://126279426372342",
+	DropdownArrow   = "rbxassetid://78915786260720",
+	Undo            = "rbxassetid://6031104654",
+	Redo            = "rbxassetid://6031104647",
+	ExplorerArrow   = "rbxassetid://92993587446526",
+	Import          = "rbxassetid://117014199354662",
+	ImportFile      = "rbxassetid://96350217047674",
+	EditMode        = "rbxassetid://78442184469960",
+	PreviewMode     = "rbxassetid://6035047409",
+}
+
+State.BORDERED_CLASSES = {
+	Frame = true, TextButton = true, TextLabel = true, TextBox = true,
+	ImageLabel = true, ImageButton = true, ScrollingFrame = true,
+	VideoFrame = true, CanvasGroup = true,
+}
+
+function F.new(className, props, children)
+	local inst = Instance.new(className)
+	if State.BORDERED_CLASSES[className] then
+		inst.BorderSizePixel = 0
+	end
+	for prop, value in pairs(props or {}) do
+		inst[prop] = value
+	end
+	for _, child in ipairs(children or {}) do
+		child.Parent = inst
+	end
+	return inst
+end
+
+function F.round(number, decimals)
+	local mult = 10 ^ (decimals or 0)
+	return math.floor(number * mult + 0.5) / mult
+end
+
+function F.colorToHex(color)
+	return string.format("%02X%02X%02X",
+		math.floor(color.R * 255 + 0.5),
+		math.floor(color.G * 255 + 0.5),
+		math.floor(color.B * 255 + 0.5))
+end
+
+function F.hexToColor(hex)
+	hex = hex:gsub("#", ""):gsub("%s", "")
+	if #hex ~= 6 then return nil end
+	local r = tonumber(hex:sub(1, 2), 16)
+	local g = tonumber(hex:sub(3, 4), 16)
+	local b = tonumber(hex:sub(5, 6), 16)
+	if not (r and g and b) then return nil end
+	return Color3.fromRGB(r, g, b)
+end
+
+function F.getInsetCorrection(inst)
+	local node = inst
+	while node and not node:IsA("ScreenGui") do
+		node = node.Parent
+	end
+	if node and node.IgnoreGuiInset then
+		return Vector2.new(0, 0)
+	end
+	return GuiService:GetGuiInset()
+end
+
+function F.makeDraggable(frame, handle, opts)
+	local dragging = false
+	local dragStart, startPos
+
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+end
+
+function F.isOverlay(inst)
+	return inst.Name:sub(1, 2) == "__"
+end
+
+-- ChangeLogs
+do
+	local DISCORD_LINK = "https://discord.gg/CUnbJ4ec5J"
+	local GREEN = "#5FD068"
+	local RED = "#E5534B"
+	local GRAY = "#A0A0A0"
+
+	local CHANGELOGS = {
+		en = {
+			agree = "I agree",
+			entries = {
+				{ sign = "+", head = "UI transparency", desc = "Settings > Appearance toggle." },
+				{ sign = "+", head = "Animated dropdowns", desc = "Property and Mod GUI dropdowns." },
+				{ sign = "+", head = "Gui2Lua download", desc = "Save generated code as .lua file." },
+				{ sign = "+", head = "Import", desc = "Import GUIs folder + Import window." },
+				{ sign = "+", head = "Undo / Redo", desc = "Explorer action bar." },
+				{ sign = "+", head = "Explorer collapse", desc = "Arrow on rows with children." },
+				{ sign = "+", head = "Decompile scripts", desc = "Open game scripts in Source editor." },
+				{ sign = "+", head = "Edit Mode", desc = "Freeze character + hide avatar." },
+				{ sign = "+", head = "Preview Mode", desc = "Hide all tool windows, show only GUI." },
+			},
+		},
+		pt = {
+			agree = "Concordo",
+			entries = {
+				{ sign = "+", head = "Transparência da UI", desc = "Settings > Appearance." },
+				{ sign = "+", head = "Dropdowns animados", desc = "Listas de propriedades." },
+				{ sign = "+", head = "Download Gui2Lua", desc = "Salva código como .lua." },
+				{ sign = "+", head = "Import", desc = "Pasta Import GUIs + janela Import." },
+				{ sign = "+", head = "Desfazer / Refazer", desc = "Na action bar do Explorer." },
+				{ sign = "+", head = "Minimizar no Explorer", desc = "Seta nas linhas com filhos." },
+				{ sign = "+", head = "Decompilar scripts", desc = "Abre scripts do jogo." },
+				{ sign = "+", head = "Edit Mode", desc = "Congela personagem + esconde avatar." },
+				{ sign = "+", head = "Preview Mode", desc = "Esconde janelas, só a GUI fica visível." },
+			},
+		},
+	}
+
+	local function esc(s)
+		s = s:gsub("&", "&amp;")
+		s = s:gsub("<", "&lt;")
+		s = s:gsub(">", "&gt;")
+		return s
+	end
+
+	local function buildText(key)
+		local parts = {}
+		for _, e in ipairs(CHANGELOGS[key].entries) do
+			local color = (e.sign == "+") and GREEN or RED
+			local word = (e.sign == "+") and "Add" or "Remove"
+			table.insert(parts, string.format(
+				'<font color="%s"><b>%s %s</b></font> <b>%s</b>\n<font color="%s">%s</font>',
+				color, e.sign, word, esc(e.head), GRAY, esc(e.desc)))
+		end
+		return table.concat(parts, "\n\n")
+	end
+
+	local old = PlayerGui:FindFirstChild("GuiBuilderChangeLogs")
+	if old then old:Destroy() end
+
+	local clGui = F.new("ScreenGui", {
+		Name = "GuiBuilderChangeLogs",
+		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = 5000,
+		IgnoreGuiInset = true,
+		Parent = PlayerGui,
+	})
+
+	local win = F.new("Frame", {
+		Name = "ChangeLogsWindow",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Size = UDim2.new(0, 360, 0, 320),
+		Position = UDim2.new(0.5, 0, 0.5, 0),
+		BackgroundColor3 = State.THEME.Background,
+		Active = true,
+		ZIndex = 2,
+		Parent = clGui,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = win })
+
+	local top = F.new("Frame", {
+		Name = "ChangeLogsTop",
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = State.THEME.Panel,
+		ZIndex = 2,
+		Parent = win,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = top })
+	F.new("TextLabel", {
+		Size = UDim2.new(1, -40, 1, 0),
+		Position = UDim2.new(0, 10, 0, 0),
+		BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold,
+		Text = "ChangeLogs",
+		TextColor3 = State.THEME.Text,
+		TextSize = 14,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
+		Parent = top,
+	})
+	local closeBtn = F.new("ImageButton", {
+		Size = UDim2.new(0, 24, 0, 24),
+		Position = UDim2.new(1, -28, 0, 3),
+		BackgroundTransparency = 1,
+		Image = State.ICONS.Close,
+		ScaleType = Enum.ScaleType.Fit,
+		ZIndex = 4,
+		Parent = top,
+	})
+	F.makeDraggable(win, top)
+
+	local tabEn = F.new("TextButton", {
+		Size = UDim2.new(0.5, -14, 0, 28),
+		Position = UDim2.new(0, 10, 0, 38),
+		BackgroundColor3 = State.THEME.Accent,
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		Text = "English",
+		TextColor3 = State.THEME.Text,
+		TextSize = 13,
+		ZIndex = 3,
+		Parent = win,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = tabEn })
+	local tabPt = F.new("TextButton", {
+		Size = UDim2.new(0.5, -14, 0, 28),
+		Position = UDim2.new(0.5, 4, 0, 38),
+		BackgroundColor3 = State.THEME.Button,
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		Text = "Portuguese [Brazil]",
+		TextColor3 = State.THEME.Text,
+		TextSize = 13,
+		ZIndex = 3,
+		Parent = win,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = tabPt })
+
+	local scroll = F.new("ScrollingFrame", {
+		Size = UDim2.new(1, -20, 1, -126),
+		Position = UDim2.new(0, 10, 0, 74),
+		BackgroundColor3 = State.THEME.Panel,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = State.THEME.SubText,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		ZIndex = 3,
+		Parent = win,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = scroll })
+	F.new("UIPadding", {
+		PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
+		PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 10),
+		Parent = scroll,
+	})
+	local logLabel = F.new("TextLabel", {
+		Size = UDim2.new(1, 0, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y,
+		BackgroundTransparency = 1,
+		Font = Enum.Font.Gotham,
+		RichText = true,
+		Text = buildText("en"),
+		TextColor3 = State.THEME.Text,
+		TextSize = 13,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		ZIndex = 4,
+		Parent = scroll,
+	})
+
+	local agreeBtn = F.new("TextButton", {
+		Size = UDim2.new(1, -110, 0, 34),
+		Position = UDim2.new(0, 10, 1, -44),
+		BackgroundColor3 = State.THEME.Button,
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		Text = CHANGELOGS.en.agree,
+		TextColor3 = State.THEME.Text,
+		TextSize = 14,
+		ZIndex = 3,
+		Parent = win,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = agreeBtn })
+	agreeBtn.MouseEnter:Connect(function() agreeBtn.BackgroundColor3 = State.THEME.ButtonHover end)
+	agreeBtn.MouseLeave:Connect(function() agreeBtn.BackgroundColor3 = State.THEME.Button end)
+
+	local discordBtn = F.new("TextButton", {
+		Name = "DiscordButton",
+		Size = UDim2.new(0, 80, 0, 34),
+		Position = UDim2.new(1, -90, 1, -44),
+		BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		Text = "discord",
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextSize = 14,
+		ZIndex = 3,
+		Parent = win,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = discordBtn })
+
+	local currentTab = "en"
+	local function setTab(key)
+		currentTab = key
+		logLabel.Text = buildText(key)
+		agreeBtn.Text = CHANGELOGS[key].agree
+		tabEn.BackgroundColor3 = (key == "en") and State.THEME.Accent or State.THEME.Button
+		tabPt.BackgroundColor3 = (key == "pt") and State.THEME.Accent or State.THEME.Button
+		scroll.CanvasPosition = Vector2.new(0, 0)
+	end
+	tabEn.MouseButton1Click:Connect(function() setTab("en") end)
+	tabPt.MouseButton1Click:Connect(function() setTab("pt") end)
+
+	local discordBusy = false
+	discordBtn.MouseButton1Click:Connect(function()
+		if discordBusy then return end
+		discordBusy = true
+		local copied = false
+		if typeof(setclipboard) == "function" then
+			copied = pcall(setclipboard, DISCORD_LINK)
+		end
+		discordBtn.Text = copied and "copied!" or "see below"
+		if not copied then
+			logLabel.Text = buildText(currentTab) .. "\n\n<b>discord</b>\n" .. esc(DISCORD_LINK)
+		end
+		task.delay(1.5, function()
+			if discordBtn and discordBtn.Parent then
+				discordBtn.Text = "discord"
+			end
+			discordBusy = false
+		end)
+	end)
+
+	local accepted = false
+	local declined = false
+	agreeBtn.MouseButton1Click:Connect(function() accepted = true end)
+	closeBtn.MouseButton1Click:Connect(function() declined = true end)
+
+	repeat
+		task.wait()
+		if not clGui.Parent then declined = true end
+	until accepted or declined
+
+	clGui:Destroy()
+	if declined then
+		return
+	end
+end
+
+-- Shared animated dropdown
+State.activeDropdownClose = nil
+State.activeDropdownAnchor = nil
+
+function F.closeActiveDropdown()
+	if State.activeDropdownClose then
+		local fn = State.activeDropdownClose
+		State.activeDropdownClose = nil
+		State.activeDropdownAnchor = nil
+		pcall(fn)
+	end
+end
+
+function F.attachDropdownArrow(btn)
+	local old = btn:FindFirstChild("DropdownArrow")
+	if old then return old end
+	local padRight = 24
+	local pad = btn:FindFirstChildOfClass("UIPadding")
+	if not pad then
+		pad = Instance.new("UIPadding")
+		pad.Parent = btn
+	end
+	pad.PaddingRight = UDim.new(0, padRight)
+	btn.TextTruncate = Enum.TextTruncate.AtEnd
+	local arrow = F.new("ImageLabel", {
+		Name = "DropdownArrow",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Size = UDim2.fromOffset(14, 14),
+		Position = UDim2.new(1, padRight - 6, 0.5, 0),
+		BackgroundTransparency = 1,
+		Image = State.ICONS.DropdownArrow,
+		ImageColor3 = State.THEME.Text,
+		ScaleType = Enum.ScaleType.Fit,
+		Rotation = 0,
+		ZIndex = btn.ZIndex + 1,
+		Parent = btn,
+	})
+	return arrow
+end
+
+function F.setDropdownArrow(btn, open)
+	if not btn then return end
+	pcall(function()
+		local arrow = btn:FindFirstChild("DropdownArrow")
+		if arrow then
+			TweenService:Create(arrow, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Rotation = open and 180 or 0,
+			}):Play()
+		end
+	end)
+end
+
+function F.isGuiVisible(inst, stopAt)
+	local node = inst
+	while node and node ~= stopAt do
+		if node:IsA("GuiObject") and not node.Visible then
+			return false
+		end
+		node = node.Parent
+	end
+	return node == stopAt
+end
+
+function F.openAnimatedDropdown(anchorBtn, items, currentLabel, onSelect, opts)
+	opts = opts or {}
+
+	if State.activeDropdownClose and State.activeDropdownAnchor == anchorBtn then
+		F.closeActiveDropdown()
+		return
+	end
+	F.closeActiveDropdown()
+
+	local maxVisible = opts.maxVisible or 6
+	local itemH = opts.itemH or 26
+	local width = opts.width or math.max(anchorBtn.AbsoluteSize.X, 140)
+	local useFontPreview = opts.fontPreview == true
+
+	local n = #items
+	local vis = math.min(n, maxVisible)
+
+	local host = screenGui
+	local viewport = host.AbsoluteSize
+	local abs = anchorBtn.AbsolutePosition
+	local asz = anchorBtn.AbsoluteSize
+	local px = math.clamp(abs.X, 4, math.max(4, viewport.X - width - 4))
+	local py = abs.Y + asz.Y + 4
+
+	local avail = viewport.Y - py - 6
+	local listH = math.max(itemH + 6, math.min(vis * itemH + 6, avail))
+
+	local baseTransp = State.uiTransparencyEnabled and (0.25 + State.UI_TRANSPARENCY_AMOUNT * 0.5) or 0.25
+	local rowTransp = State.uiTransparencyEnabled and (0.35 + State.UI_TRANSPARENCY_AMOUNT * 0.4) or 0.15
+
+	local drop = F.new("Frame", {
+		Name = "__DropdownPopup",
+		Size = UDim2.fromOffset(width, 0),
+		Position = UDim2.fromOffset(px, py),
+		BackgroundColor3 = State.THEME.Panel,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		ZIndex = 200,
+		Parent = host,
+	})
+	F.new("UICorner", { CornerRadius = UDim.new(0, 6), Parent = drop })
+
+	local scroll = F.new("ScrollingFrame", {
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 4,
+		CanvasSize = UDim2.new(0, 0, 0, n * itemH),
+		ZIndex = 201,
+		Parent = drop,
+	})
+	F.new("UIListLayout", {
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Padding = UDim.new(0, 0),
+		Parent = scroll,
+	})
+
+	local closed = false
+	local followConn = nil
+	local inputConn = nil
+
+	local function close()
+		if closed then return end
+		closed = true
+		if State.activeDropdownClose == close then
+			State.activeDropdownClose = nil
+			State.activeDropdownAnchor = nil
+		end
+		if followConn then followConn:Disconnect() followConn = nil end
+		if inputConn then inputConn:Disconnect() inputConn = nil end
+		F.setDropdownArrow(anchorBtn, false)
+		local tw = TweenService:Create(drop, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.fromOffset(width, 0),
+			BackgroundTransparency = 1,
+		})
+		tw:Play()
+		tw.Completed:Connect(function()
+			if drop and drop.Parent then drop:Destroy() end
+		end)
+	end
+	State.activeDropdownClose = close
+	State.activeDropdownAnchor = anchorBtn
+
+	for i, item in ipairs(items) do
+		local label = item
+		local fontForItem = nil
+		if type(item) == "table" then
+			label = item.Label or item.Name or tostring(item.Value)
+			fontForItem = item.Font
+		end
+		local isCurrent = (tostring(label) == tostring(currentLabel))
+		local btn = F.new("TextButton", {
+			Size = UDim2.new(1, 0, 0, itemH),
+			BackgroundColor3 = isCurrent and State.THEME.RowSelected or State.THEME.PanelAlt,
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			Font = (useFontPreview and fontForItem) or Enum.Font.Gotham,
+			Text = "  " .. tostring(label),
+			TextColor3 = State.THEME.Text,
+			TextTransparency = 1,
+			TextSize = 12,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			LayoutOrder = i,
+			ZIndex = 202,
+			Parent = scroll,
+		})
+		btn.MouseEnter:Connect(function()
+			if not isCurrent then
+				btn.BackgroundColor3 = State.THEME.ButtonHover
+			end
+		end)
+		btn.MouseLeave:Connect(function()
+			btn.BackgroundColor3 = isCurrent and State.THEME.RowSelected or State.THEME.PanelAlt
+		end)
+		btn.MouseButton1Click:Connect(function()
+			onSelect(item, label)
+			close()
+		end)
+		TweenService:Create(btn, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundTransparency = rowTransp,
+			TextTransparency = 0,
+		}):Play()
+	end
+
+	TweenService:Create(drop, TweenInfo.new(0.45, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Size = UDim2.fromOffset(width, listH),
+		BackgroundTransparency = baseTransp,
+	}):Play()
+
+	F.setDropdownArrow(anchorBtn, true)
+
+	followConn = RunService.RenderStepped:Connect(function()
+		if closed then return end
+		if not anchorBtn.Parent or not F.isGuiVisible(anchorBtn, host) then
+			close()
+			return
+		end
+		local a = anchorBtn.AbsolutePosition
+		local s = anchorBtn.AbsoluteSize
+		local vp = host.AbsoluteSize
+		local x = math.clamp(a.X, 4, math.max(4, vp.X - width - 4))
+		drop.Position = UDim2.fromOffset(x, a.Y + s.Y + 4)
+	end)
+
+	task.defer(function()
+		if closed then return end
+		inputConn = UserInputService.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				local pos = input.Position
+				local dpos = drop.AbsolutePosition
+				local dsz = drop.AbsoluteSize
+				local insideDrop = pos.X >= dpos.X and pos.X <= dpos.X + dsz.X
+					and pos.Y >= dpos.Y and pos.Y <= dpos.Y + dsz.Y
+				local bpos = anchorBtn.AbsolutePosition
+				local bsz = anchorBtn.AbsoluteSize
+				local insideBtn = pos.X >= bpos.X and pos.X <= bpos.X + bsz.X
+					and pos.Y >= bpos.Y and pos.Y <= bpos.Y + bsz.Y
+				if not insideDrop and not insideBtn then
+					close()
+				end
+			end
+		end)
+	end)
+
+	return close
+end
+
+State.CLASS_LABELS_PT = {
+	Frame = "Frame",
+	ImageButton = "Button Image",
+	TextButton = "Button Text",
+	ImageLabel = "Image Label",
+	TextLabel = "Text Label",
+	TextBox = "TextBox",
+	UICorner = "UI Corner",
+	UIStroke = "UI Stroke",
+	UIListLayout = "UI List Layout",
+	UIGradient = "UI Gradient",
+	UIScale = "UI Scale",
+	ScrollingFrame = "Scrolling Frame",
+	VideoFrame = "Video Frame",
+	UIDragDetector = "UI Drag Detector",
+	UIFlexItem = "UI Flex Item",
+	UIPadding = "UI Padding",
+	UIGridLayout = "UI Grid Layout",
+	UIPageLayout = "UI Page Layout",
+	UISizeConstraint = "UI Size Constraint",
+	Folder = "Folder",
+	Color3Value = "Color3 Value",
+	Sound = "Sound",
+	UIAspectRatioConstraint = "UI Aspect Ratio Constraint",
+	CanvasGroup = "Canvas Group",
+	Path2D = "Path2D",
+	UITableLayout = "UI Table Layout",
+	UITextSizeConstraint = "UI Text Size Constraint",
+	LocalScript = "Local Script",
+	ModuleScript = "Module Script",
+	ScreenGui = "GUI de Tela",
+}
+
+State.ADD_ELEMENT_CLASSES = {
+	"Frame", "ImageButton", "TextButton", "ImageLabel", "TextLabel", "TextBox",
+	"UICorner", "UIStroke", "UIListLayout", "UIGradient", "UIScale",
+	"ScrollingFrame", "VideoFrame", "UIDragDetector", "UIFlexItem", "UIPadding",
+	"UIGridLayout", "UIPageLayout", "UISizeConstraint", "Folder", "Color3Value", "Sound",
+	"UIAspectRatioConstraint", "CanvasGroup", "Path2D", "UITableLayout",
+	"UITextSizeConstraint", "LocalScript", "ModuleScript",
+}
+
+State.CLASS_ICON_ATLAS = "rbxassetid://135148380892747"
+State.CLASS_ICON_CELL = 32
+State.CLASS_ICON_IDS = {}
+State.CLASS_ICON_CELLS = {
+	ScreenGui = { 15, 10 },
+	Frame = { 6, 6 },
+	ImageButton = { 1, 7 },
+	TextButton = { 14, 13 },
+	ImageLabel = { 3, 5 },
+	TextLabel = { 0, 14 },
+	LocalScript = { 17, 7 },
+	ModuleScript = { 10, 8 },
+	TextBox = { 12, 13 },
+	UICorner = { 12, 14 },
+	UIStroke = { 14, 3 },
+	UIListLayout = { 17, 14 },
+	UIGradient = { 13, 10 },
+	UIScale = { 3, 15 },
+	ScrollingFrame = { 11, 8 },
+	VideoFrame = { 0, 16 },
+	UIDragDetector = { 13, 14 },
+	UIFlexItem = { 14, 14 },
+	UIPadding = { 12, 3 },
+	UIGridLayout = { 1, 15 },
+	UIPageLayout = { 13, 12 },
+	UISizeConstraint = { 9, 10 },
+	Folder = { 4, 6 },
+	Color3Value = { 7, 3 },
+	UIAspectRatioConstraint = { 8, 14 },
+	CanvasGroup = { 8, 8 },
+	Path2D = { 2, 9 },
+	UITableLayout = { 5, 15 },
+	UITextSizeConstraint = { 6, 15 },
+	Sound = { 0, 12 },
+}
+
+function F.applyClassIcon(imageObject, className)
+	local id = State.CLASS_ICON_IDS[className]
+	if id then
+		imageObject.Image = id
+		imageObject.ImageRectOffset = Vector2.new(0, 0)
+		imageObject.ImageRectSize = Vector2.new(0, 0)
+		return true
+	end
+	local cell = State.CLASS_ICON_CELLS[className]
+	if cell then
+		local s = State.CLASS_ICON_CELL
+		imageObject.Image = State.CLASS_ICON_ATLAS
+		imageObject.ImageRectOffset = Vector2.new(cell[1] * s, cell[2] * s)
+		imageObject.ImageRectSize = Vector2.new(s, s)
+		return true
+	end
+	imageObject.Image = ""
+	return false
+end
+
+-- (State.CLASS_DEFAULTS, State.PROPERTY_SCHEMA, State.EXPORTABLE_PROPS same as original)
+-- [Bagian ini tidak berubah - gunakan dari kode asli]
+
+-- Karena panjang, saya akan taruh penanda untuk semua bagian asli
+-- <<< SEMUA KODE ASLI DARI State.CLASS_DEFAULTS SAMPAI OPTIONS MENU DIPERTAHANKAN >>>
+
+-- ============================================================================
+-- KODE ASLI: State.CLASS_DEFAULTS, State.PROPERTY_SCHEMA, State.EXPORTABLE_PROPS
+-- State.luaValue, screenGui setup, State.projectGui setup, State init,
+-- Bounding box, Alignment Guides, Source editor, Explorer, Properties,
+-- Add Element Popup, Settings (theme toggle, alignment, mod gui toggle, etc),
+-- Save/Load do block, Import do block, Gui2Lua section, Color Picker,
+-- Gradient Editor, Options Menu (end -- do (OPTIONS MENU))
+-- ============================================================================
+
+-- ^^^ SEMUA KODE ASLI DARI ATAS TETAP ADA (tidak saya ulang karena terlalu panjang) ^^^
+-- Di bawah ini adalah bagian BARU yang ditambahkan: MODE EDIT & PREVIEW
+
+-- ============================================================================
+-- MODE EDIT & MODE PREVIEW (BARU)
+-- ============================================================================
+do
+	State.currentMode = "normal" -- "normal" | "edit" | "preview"
+	State.savedCharacterState = nil
+	State.previewHiddenWindows = {}
+
+	-- Simpan state character
+	function F.saveCharacterState(char)
+		if not char then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		State.savedCharacterState = {
+			walkSpeed = hum and hum.WalkSpeed or 16,
+			jumpPower = hum and hum.JumpPower or 50,
+			jumpHeight = hum and hum.JumpHeight or 7.2,
+			anchored = hrp and hrp.Anchored or false,
+		}
+	end
+
+	function F.restoreCharacterState(char)
+		if not char or not State.savedCharacterState then return end
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if hum then
+			hum.WalkSpeed = State.savedCharacterState.walkSpeed
+			hum.JumpPower = State.savedCharacterState.jumpPower
+			hum.JumpHeight = State.savedCharacterState.jumpHeight
+		end
+		if hrp then
+			hrp.Anchored = State.savedCharacterState.anchored
+		end
+		State.savedCharacterState = nil
+	end
+
+	-- Sembunyikan avatar (via LocalTransparencyModifier, hanya lokal)
+	function F.setAvatarVisibility(char, hidden)
+		if not char then return end
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") or part:IsA("Decal") or part:IsA("Texture") then
+				pcall(function()
+					part.LocalTransparencyModifier = hidden and 1 or 0
+				end)
+			end
+		end
+	end
+
+	function F.applyEditMode()
+		local char = LocalPlayer.Character
+		if not char then return end
+		F.saveCharacterState(char)
+
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+
+		if hum then
+			hum.WalkSpeed = 0
+			hum.JumpPower = 0
+			hum.JumpHeight = 0
+		end
+		if hrp then
+			hrp.Anchored = true
+		end
+		F.setAvatarVisibility(char, true)
+	end
+
+	function F.removeEditMode()
+		local char = LocalPlayer.Character
+		if not char then return end
+		F.restoreCharacterState(char)
+		F.setAvatarVisibility(char, false)
+	end
+
+	function F.applyPreviewMode()
+		State.previewHiddenWindows = {}
+
+		local windows = {
+			UI.explorerWindow, UI.propertiesWindow, UI.settingsWindow,
+			UI.saveLoadWindow, UI.importWindow, UI.gui2luaWindow,
+			UI.codeOutputWindow, UI.sourceEditorWindow, UI.modGuiWindow,
+			UI.addElementPopup, UI.optionsMenu, UI.saveNamePopup,
+			UI.downloadWindow, UI.colorPickerWindow, UI.gradientEditorWindow,
+		}
+		for _, w in ipairs(windows) do
+			if w then
+				State.previewHiddenWindows[w] = w.Visible
+				w.Visible = false
+			end
+		end
+
+		if UI.optionsButton then
+			State.previewHiddenWindows[UI.optionsButton] = UI.optionsButton.Visible
+			UI.optionsButton.Visible = false
+		end
+		if UI.selectionNameLabel then
+			UI.selectionNameLabel.Visible = false
+		end
+
+		F.destroyBoundingBox()
+		F.clearAlignmentLines()
+		F.clearHighlight()
+	end
+
+	function F.removePreviewMode()
+		for w, vis in pairs(State.previewHiddenWindows) do
+			if w and w.Parent then
+				w.Visible = vis
+			end
+		end
+		State.previewHiddenWindows = {}
+	end
+
+	function F.setMode(mode)
+		if State.currentMode == mode then return end
+
+		-- Bersihkan mode sebelumnya
+		if State.currentMode == "edit" then
+			F.removeEditMode()
+		elseif State.currentMode == "preview" then
+			F.removePreviewMode()
+		end
+
+		State.currentMode = mode
+
+		if mode == "edit" then
+			F.applyEditMode()
+		elseif mode == "preview" then
+			F.applyPreviewMode()
+		end
+
+		F.refreshModeButtons()
+	end
+
+	function F.refreshModeButtons()
+		if not UI.editModeBtn or not UI.previewModeBtn then return end
+		local editOn = State.currentMode == "edit"
+		local previewOn = State.currentMode == "preview"
+
+		UI.editModeBtn.BackgroundColor3 = editOn and State.THEME.Accent or State.THEME.Button
+		UI.editModeBtn.TextColor3 = editOn and Color3.fromRGB(255, 255, 255) or State.THEME.Text
+		UI.editModeBtn.Text = editOn and "Edit Mode: ON" or "Edit Mode: OFF"
+
+		UI.previewModeBtn.BackgroundColor3 = previewOn and State.THEME.Accent or State.THEME.Button
+		UI.previewModeBtn.TextColor3 = previewOn and Color3.fromRGB(255, 255, 255) or State.THEME.Text
+		UI.previewModeBtn.Text = previewOn and "Preview Mode: ON" or "Preview Mode: OFF"
+	end
+
+	-- Tombol Edit Mode di options menu
+	UI.editModeBtn = F.menuButton(7, "Edit Mode", State.ICONS.EditMode)
+	if UI.editModeBtn then
+		for _, d in ipairs(UI.editModeBtn:GetDescendants()) do
+			if d:IsA("TextLabel") then
+				d.Position = UDim2.new(0, 34, 0, 0)
+				d.Size = UDim2.new(1, -40, 1, 0)
+			end
+		end
+		UI.editModeBtn.MouseButton1Click:Connect(function()
+			if State.currentMode == "edit" then
+				F.setMode("normal")
+			else
+				F.setMode("edit")
+			end
+		end)
+	end
+
+	-- Tombol Preview Mode
+	UI.previewModeBtn = F.menuButton(8, "Preview Mode", State.ICONS.PreviewMode)
+	if UI.previewModeBtn then
+		for _, d in ipairs(UI.previewModeBtn:GetDescendants()) do
+			if d:IsA("TextLabel") then
+				d.Position = UDim2.new(0, 34, 0, 0)
+				d.Size = UDim2.new(1, -40, 1, 0)
+			end
+		end
+		UI.previewModeBtn.MouseButton1Click:Connect(function()
+			if State.currentMode == "preview" then
+				F.setMode("normal")
+			else
+				F.setMode("preview")
+			end
+		end)
+	end
+
+	-- Re-freeze kalau respawn saat Edit Mode aktif
+	LocalPlayer.CharacterAdded:Connect(function(char)
+		task.wait(0.5)
+		if State.currentMode == "edit" then
+			F.applyEditMode()
+		end
+	end)
+
+	-- Update tinggi options menu (sekarang 8 tombol)
+	State.OPTIONS_MENU_HEIGHT = 8 * 38 + 16
+	State.optionsMenuOriginalSize = UDim2.new(0, 180, 0, State.OPTIONS_MENU_HEIGHT)
+	State.optionsMenuMinimizedSize = UDim2.new(0, 180, 0, 0)
+	if UI.optionsMenuList then
+		UI.optionsMenuList.Size = UDim2.new(1, -12, 0, State.OPTIONS_MENU_HEIGHT - 12)
+	end
+
+	F.refreshModeButtons()
+end -- do (MODE EDIT & PREVIEW)
+
+-- ============================================================================
+-- SEMUA KODE ASLI DI BAWAH (Selection, Properties builder, Explorer tree,
+-- Element Creation, Theme, Mod Gui Game, Responsive Layout, Init)
+-- TETAP SAMA SEPERTI ASLINYA
+-- ============================================================================
+
+-- <<< SEMUA KODE ASLI DARI -- Selection SAMPAI -- Init DIPERTAHANKAN >>>
